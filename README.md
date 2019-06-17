@@ -5,10 +5,12 @@ This is a repository of Grab Safety competition based on telematic data.
 Just simply open html file (precisely this file: Grab_Safety.nb.html)
 
 # How to run this code? 
-Just simply use R Studio + R, and please extract the dataset under dataset folder you should create first with the following folder hierarchy. 
-
-- dataset/safety/features
-- dataset/safety/labels
+1. Open Grab_Safety.Rproj and Just simply use R Studio + R.
+2. Extract the dataset under dataset folder you should create first with the following folder hierarchy. 
+- dataset/safety/features/...
+- dataset/safety/labels/...
+- dataset/safety/datadictionary.xls
+3. Open .Rmd file
 
 I did not put the dataset because of the size of the dataset (>800MB upon compressing). 
 
