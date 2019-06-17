@@ -1,7 +1,8 @@
 # GrabSafety
 This is a repository of Grab Safety competition based on telematic data. 
 
-# Programming Language: R, running on R version 3.5.1 
+# Programming Language: 
+R, running on R version 3.5.1 
 
 # Problem Description
 
