@@ -286,7 +286,7 @@ model_glmnet
 
 ```{r}
 # Train the model using gbm
-model_decision_tree = train(label ~ ., data=sample_train[,2:59], method='gbm', tuneLength=5, trControl = fitControl)
+model_gbm = train(label ~ ., data=sample_train[,2:59], method='gbm', tuneLength=5, trControl = fitControl)
 
 model_gbm
 ```
