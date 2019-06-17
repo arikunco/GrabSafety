@@ -5,7 +5,7 @@ This is a repository of Grab Safety competition based on telematic data.
 Just simply fork or download this repository, then open .Rmd or html file (precisely this file: Grab_Safety.Rmd or Grab_Safety.nb.html). 
 
 # How to run this code? 
-1. Open Grab_Safety.Rproj and Just simply use R Studio + R.
+1. Open Grab_Safety.Rproj with R Studio + R (v 3.5.1).
 2. Extract the dataset under dataset folder you should create first with the following folder hierarchy. 
 - dataset/safety/features/...
 - dataset/safety/labels/...
