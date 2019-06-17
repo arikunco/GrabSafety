@@ -271,7 +271,7 @@ modelnames
 ```
 
 
-**Using glm, gbm, and glmnet** 
+**Using glm, glmnet, and gbm** 
 ```{r}
 # Train the model using glm
 model_glm = train(label ~ ., data=sample_train[,2:59], method='glm', tuneLength=5, trControl = fitControl)
