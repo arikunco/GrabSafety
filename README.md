@@ -2,10 +2,10 @@
 This is a repository of Grab Safety competition based on telematic data. 
 
 # How to read this code? 
-Just simply open html file
+Just simply open html file (precisely this file: Grab_Safety.nb.html)
 
 # How to run this code? 
-Just simply use R Studio, and please extract the dataset under dataset folder you should create first with the following folder hierarchy. 
+Just simply use R Studio + R, and please extract the dataset under dataset folder you should create first with the following folder hierarchy. 
 
 - dataset/safety/features
 - dataset/safety/labels
