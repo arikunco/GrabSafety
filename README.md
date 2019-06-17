@@ -9,7 +9,7 @@ Just simply fork or download this repository, then open html file (precisely thi
 2. Extract the dataset under dataset folder you should create first with the following folder hierarchy. 
 - dataset/safety/features/...
 - dataset/safety/labels/...
-- dataset/safety/datadictionary.xls
+- dataset/safety/data_dictionary.xls
 3. Open .Rmd file
 
 I did not put the dataset because of the size of the dataset (>800MB upon compressing). 
