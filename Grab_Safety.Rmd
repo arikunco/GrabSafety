@@ -1,0 +1,344 @@
+---
+title: "Grab 'Safety' Challenge"
+output: html_notebook
+author: "Bernardus Ari Kuncoro"
+---
+
+![](grab_safety_image.png)
+
+#Problem Description
+
+Given the telematics data for each trip and the label if the trip is tagged as dangerous driving, derive a model that can detect dangerous driving trips.
+
+#Dataset 
+
+The given dataset contains telematics data during trips (bookingID). Each trip will be assigned with label 1 or 0 in a separate label file to indicate dangerous driving.
+Field
+
+**Data Dictionary**
+
+- bookingID: trip id
+- Accuracy: accuracy inferred by GPS in meters
+- Bearing: GPS bearing in degree
+- acceleration_x: accelerometer reading at x axis (m/s2)
+- acceleration_y: accelerometer reading at y axis (m/s2)
+- acceleration_z: accelerometer reading at z axis (m/s2)
+- gyro_x: gyroscope reading in x axis (rad/s)
+- gyro_y: gyroscope reading in y axis (rad/s)
+- gyro_z: gyroscope reading in z axis (rad/s)
+- second: time of the record by number of seconds
+- Speed: speed measured by GPS in m/s
+
+#1. Loading Library
+```{r}
+library(tidyverse) #for data preparation
+library(DataExplorer) #for exploratory data analysis
+library(caret) # for machine learning libraries
+```
+
+#2. Loading Dataset 
+
+We got the .zip files that contain 
+
+**Feature**
+```{r}
+options(scipen=999) # avoid scientific format in R
+part_0 <- read.csv("dataset/safety/features/part-00000-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_1 <- read.csv("dataset/safety/features/part-00001-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_2 <- read.csv("dataset/safety/features/part-00002-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_3 <- read.csv("dataset/safety/features/part-00003-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_4 <- read.csv("dataset/safety/features/part-00004-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_5 <- read.csv("dataset/safety/features/part-00005-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_6 <- read.csv("dataset/safety/features/part-00006-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_7 <- read.csv("dataset/safety/features/part-00007-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_8 <- read.csv("dataset/safety/features/part-00008-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+part_9 <- read.csv("dataset/safety/features/part-00009-e6120af0-10c2-4248-97c4-81baf4304e5c-c000.csv")
+```
+#3. Data Preparation
+
+All features must be united into one dataframe
+```{r}
+feature_all <- do.call("rbind", list(part_0,part_1,part_2,part_3,part_4,part_5,part_6,part_7,part_8,part_9))
+```
+
+Remove the part_0 to part_9 dataframe to save memory
+
+```{r}
+rm(part_0,part_1,part_2,part_3,part_4,part_5,part_6,part_7,part_8,part_9)
+```
+
+Let's check the dimension of feature_all 
+
+```{r}
+dim(feature_all)
+```
+
+
+**Label**
+```{r}
+label <- read.csv("dataset/safety/labels/part-00000-e9445087-aa0a-433b-a7f6-7f4c19d78ad6-c000.csv")
+```
+Now let's check the dimension of the label. 
+```{r}
+dim(label)
+```
+Check whether the bookingID is unique.
+```{r}
+label2 <- label %>% group_by(bookingID) %>% summarise(n=n()) %>% filter(n>1)
+dim(label2)
+```
+There are 18 unique Booking IDs are duplicate. Let's check the label of those 18 unique booking IDs.
+
+```{r}
+check_label <- label2 %>% left_join(label,by="bookingID") 
+check_label
+```
+All of the label has two options of 0 or 1. So, we just need to drop them. 
+```{r}
+label_final <- label %>% anti_join(label2)
+head(label_final)
+```
+Check the proportion of the label: 75% labeled as 0, 25% labeled as 1. 
+```{r}
+prop.table(table(label_final$label))
+```
+Remove some dataframe to save memory
+```{r}
+rm(label, label2, check_label)
+```
+
+#4. Feature Engineering 
+
+We should think creatively, what would be the features whether a booking id is labeled as safe or not. Not Safe = 1, Safe = 0. 
+
+```{r}
+# Perform undersampling first. Just use 50% class 0 and 50% class 1
+
+# rows that have "z" and "zz" entries
+z_ind <- which(label_final$label == 0)
+zz_ind <- which(label_final$label == 1)
+
+nsamp <- min(length(z_ind), length(zz_ind))   #number of elements to sample
+
+## select `nsamp` entries with 0 and `nsamp` entries with 1
+pick_z <- sample(z_ind, nsamp)
+pick_zz <- sample(zz_ind, nsamp)
+label_final_new <- label_final[c(pick_z, pick_zz), ]
+
+# We need to order by time of each bookingID for undersampling features. 
+feature_all_1 <- label_final_new %>% left_join(feature_all, by='bookingID') %>% 
+  group_by(bookingID) %>% arrange(second, .by_group=TRUE)
+
+# Average speed, Median, Max Speed, Duration of Booking
+candidate_feature_1 <- feature_all_1 %>% group_by(bookingID) %>%
+  summarise(avg_speed=mean(Speed), median_speed=median(Speed), max_speed=max(Speed), duration=max(second), sd_speed=sd(Speed))
+
+# Delta Bearing: Average delta bearing, Max delta bearing, Median delta bearing 
+candidate_feature_2 <- feature_all_1 %>% select(bookingID,Bearing) %>%
+  mutate(lag_bearing=lag(Bearing),delta_bearing=abs(Bearing-lag_bearing)) %>%
+  filter(!is.na(delta_bearing)) %>% group_by(bookingID) %>%
+  summarise(avg_delta_bearing=mean(delta_bearing),
+                                    max_delta_bearing=max(delta_bearing),
+                                    median_delta_bearing= median(delta_bearing),
+                                    sd_delta_bearing=sd(delta_bearing))
+
+# Acceleration: Average acceleration, median acceleration, max acceleration 
+candidate_feature_3 <- feature_all_1 %>% 
+  select(bookingID, acceleration_x,acceleration_y, acceleration_z) %>% 
+  group_by(bookingID) %>% summarise(avg_acceleration_x=mean(acceleration_x),
+                                    avg_acceleration_y=mean(acceleration_y),
+                                    avg_acceleration_z=mean(acceleration_z),
+                                    median_acceleration_x=median(acceleration_x),
+                                    median_acceleration_y=median(acceleration_y),
+                                    median_acceleration_z=median(acceleration_z),
+                                    max_acceleration_x=max(acceleration_x),
+                                    max_acceleration_y=max(acceleration_y),
+                                    max_acceleration_z=max(acceleration_z),
+                                    sd_acceleration_x=sd(acceleration_x),
+                                    sd_acceleration_y=sd(acceleration_y),
+                                    sd_acceleration_z=sd(acceleration_z))
+
+# Gyro: average gyroscope, median gyro, max gyro
+candidate_feature_4 <- feature_all_1 %>% 
+  select(bookingID, gyro_x, gyro_y, gyro_z) %>% group_by(bookingID) %>% 
+  summarise(avg_gyro_x=mean(gyro_x),
+            avg_gyro_y=mean(gyro_y),
+            avg_gyro_z=mean(gyro_z),
+            median_gyro_x=median(gyro_x),
+            median_gyro_y=median(gyro_y),
+            median_gyro_z=median(gyro_z),
+            max_gyro_x=max(gyro_x),
+            max_gyro_y=max(gyro_y),
+            max_gyro_z=max(gyro_z),
+            sd_gyro_x=sd(gyro_x),
+            sd_gyro_y=sd(gyro_y),
+            sd_gyro_z=sd(gyro_z))
+
+# Delta Acceleration: Average Delta acceleration, median delta acceleration, max delta acceleration, and standard deviation 
+candidate_feature_5 <- feature_all_1 %>% 
+  select(bookingID, acceleration_x,acceleration_y, acceleration_z) %>% 
+  mutate(lag_acceleration_x=lag(acceleration_x),
+         lag_acceleration_y=lag(acceleration_y),
+         lag_acceleration_z=lag(acceleration_z)) %>%
+  mutate(delta_accel_x = abs(lag_acceleration_x-acceleration_x),
+         delta_accel_y = abs(lag_acceleration_y-acceleration_y), 
+         delta_accel_z = abs(lag_acceleration_z-acceleration_z)) %>% 
+  filter(!is.na(delta_accel_x)) %>% group_by(bookingID) %>% 
+  summarise(avg_delta_accel_x=mean(delta_accel_x),
+            avg_delta_accel_y=mean(delta_accel_y),
+            avg_delta_accel_z=mean(delta_accel_z),
+            max_delta_accel_x=max(delta_accel_x),
+            max_delta_accel_y=max(delta_accel_y),
+            max_delta_accel_z=max(delta_accel_y),
+            median_delta_accel_x=median(delta_accel_x),
+            median_delta_accel_y=median(delta_accel_y),
+            median_delta_accel_z=median(delta_accel_z),
+            sd_delta_accel_x=sd(delta_accel_x),
+            sd_delta_accel_y=sd(delta_accel_y),
+            sd_delta_accel_z=sd(delta_accel_z))
+
+# Delta Gyro: Average Delta gyro, median delta gyro, max delta gyro, and standard deviation gyro
+candidate_feature_6 <- feature_all_1 %>% 
+  select(bookingID, gyro_x,gyro_y, gyro_z) %>% 
+  mutate(lag_gyro_x=lag(gyro_x),
+         lag_gyro_y=lag(gyro_y),
+         lag_gyro_z=lag(gyro_z)) %>%
+  mutate(delta_gyro_x = abs(lag_gyro_x-gyro_x),
+         delta_gyro_y = abs(lag_gyro_y-gyro_y), 
+         delta_gyro_z = abs(lag_gyro_z-gyro_z)) %>% 
+  filter(!is.na(delta_gyro_x)) %>% group_by(bookingID) %>% 
+  summarise(avg_delta_gyro_x=mean(delta_gyro_x),
+            avg_delta_gyro_y=mean(delta_gyro_y),
+            avg_delta_gyro_z=mean(delta_gyro_z),
+            max_delta_gyro_x=max(delta_gyro_x),
+            max_delta_gyro_y=max(delta_gyro_y),
+            max_delta_gyro_z=max(delta_gyro_y),
+            median_delta_gyro_x=median(delta_gyro_x),
+            median_delta_gyro_y=median(delta_gyro_y),
+            median_delta_gyro_z=median(delta_gyro_z),
+            sd_delta_gyro_x=sd(delta_gyro_x),
+            sd_delta_gyro_y=sd(delta_gyro_y),
+            sd_delta_gyro_z=sd(delta_gyro_z))
+
+# Combine all the feature candidates into one dataframe 
+feature_all_final <- candidate_feature_1 %>% 
+  left_join(candidate_feature_2, by='bookingID') %>% 
+  left_join(candidate_feature_3, by='bookingID') %>% 
+  left_join(candidate_feature_4, by='bookingID') %>% 
+  left_join(candidate_feature_5, by='bookingID') %>% 
+  left_join(candidate_feature_6, by='bookingID') %>% 
+  left_join(label_final_new, by='bookingID')
+```
+Check total feature + label final dimension 
+```{r}
+feature_all_final$label <- ifelse(feature_all_final$label==0, 'Safe','NotSafe')
+dim(feature_all_final)
+```
+#5. Modeling 
+
+```{r}
+# Training and testing splitting, 75% training, 25% testing
+set.seed(101) # Set Seed so that same sample can be reproduced in future also
+# Now Selecting 75% of data as sample from total 'n' rows of the data  
+sample <- sample.int(n = nrow(feature_all_final), size = floor(.75*nrow(feature_all_final)), replace = F)
+
+
+sample_train <- as.data.frame(feature_all_final[sample, ])
+sample_test  <- as.data.frame(feature_all_final[-sample, ])
+```
+Check the proportion of train and test label 
+```{r}
+table(sample_train$label)
+```
+```{r}
+table(sample_test$label)
+```
+
+Fit the training control 
+```{r}
+fitControl <- trainControl(
+  method = 'cv',                   # k-fold cross validation
+  number = 5,                      # number of folds
+  savePredictions = 'final',       # saves predictions for optimal tuning parameter
+  classProbs = T,                  # should class probabilities be returned
+  summaryFunction=twoClassSummary  # results summary function
+) 
+```
+Model Options
+```{r}
+modelnames <- paste(names(getModelInfo()), collapse=',  ')
+modelnames
+```
+
+
+**Using glm, gbm, and glmnet** 
+```{r}
+# Train the model using glm
+model_glm = train(label ~ ., data=sample_train[,2:59], method='glm', tuneLength=5, trControl = fitControl)
+model_glm
+```
+
+```{r}
+# Train the model using glmnet
+model_glmnet = train(label ~ ., data=sample_train[,2:59], method='glmnet', tuneLength=5, trControl = fitControl)
+model_glmnet
+```
+
+```{r}
+# Train the model using gbm
+model_decision_tree = train(label ~ ., data=sample_train[,2:59], method='gbm', tuneLength=5, trControl = fitControl)
+
+model_gbm
+```
+
+#6. Evaluation with Testing data for GBM
+
+Since the best ROC among glmnet, glm, and gbm was achieved byu GBM with 72%, then we will use GBM for evaluation. 
+
+```{r}
+# Load the ROCR library
+library(ROCR)
+ 
+# Predict probability values using the model: all_probs
+all_probs <- predict(model_gbm,sample_test,type="prob")
+ 
+# Print out all_probs
+all_probs
+ 
+# Select second column of all_probs: probs
+probs <- all_probs[,2] 
+
+# Make a prediction object: pred
+pred <- prediction(probs,sample_test$label)
+
+# Make a performance object: perf
+perf <- performance(pred,"tpr","fpr")
+
+# Plot this curve
+plot(perf)
+```
+The Area Under curve for testing: 74%. Slightly better than the training data above. 
+
+```{r}
+auc <- performance(pred,"auc")
+auc@y.values[[1]] 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*. -->
+
+<!-- When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).  -->
+
+<!-- The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed. -->
+
