@@ -1,6 +1,17 @@
 # GrabSafety
 This is a repository of Grab Safety competition based on telematic data. 
 
+# How to read this code? 
+Just simply open html file
+
+# How to run this code? 
+Just simply use R Studio, and please extract the dataset under dataset folder you should create first with the following folder hierarchy. 
+
+- dataset/safety/features
+- dataset/safety/labels
+
+I did not put the dataset because of the size of the dataset (>800MB upon compressing). 
+
 # Programming Language: 
 R, running on R version 3.5.1 
 
