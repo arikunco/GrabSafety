@@ -2,7 +2,7 @@
 This is a repository of Grab Safety competition based on telematic data. 
 
 # How to read this code? 
-Just simply open html file (precisely this file: Grab_Safety.nb.html)
+Just simply fork or download this repository, then open html file (precisely this file: Grab_Safety.nb.html). 
 
 # How to run this code? 
 1. Open Grab_Safety.Rproj and Just simply use R Studio + R.
