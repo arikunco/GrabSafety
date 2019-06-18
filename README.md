@@ -14,6 +14,15 @@ Just simply fork or download this repository, then open .Rmd or html file (preci
 
 I did not put the dataset because of the size of the dataset (>800MB upon compressing). 
 
+# How to evaluate the model?
+1. Step 1. Prepare the dataset for testing.  According to the guidance, format of the test data has the same field and distribution as the training data provided. To make it easy, please just rename the test data into test_data.csv, then put them in the directory evaluation. 
+2. Step 2. Run Eval.R inside evaluation directory with RStudio + R (recommend with 3.5.1) 
+3. Step 3. There will be a file of prediction result: prediction_result_prob.csv in the directory evaluateion with the following columns: 
+- bookingID
+- prob_0 (probability Safe)
+- prob_1 (probability Not Safe)
+Grab team then can evaluate with the AUC parameter. 
+
 # Programming Language: 
 R, running on R version 3.5.1 
 
